@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+	<meta content="utf-8" http-equiv="encoding">
+	<meta charset="UTF-8">
+	<meta name="description" content="What if Connect Four had optional minigames and fun 
+	powerups for you to useagainst intelligent AI, and friends both in real life and online?">
+	<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500&display=swap" rel="stylesheet">
+	<title>Connect Plus</title>
+
+	<style>
+		[v-cloak] {
+    		display: none;
+		}
+	</style>
+</head>
+<body onload="ensureVueLoaded()" style="background-color: #190021;">
+	<div id="app">
+		<img v-cloak src="assets/return-icon.png" alt="" id="return-icon" 
+		v-on:click="isOverlayActive = !isOverlayActive"
+		v-if="screen !== screens.MENU_SCREEN">
+
+		<a href="https://docs.google.com/document/d/17Jx5gA8OHkAp2eplFNrk9NN7u7GMTiMti2rbSYXZPoc/edit?usp=sharing"><img v-cloak src="assets/help.png" alt="" id="help-icon"></a>
+
+		<template v-cloak v-if="isOverlayActive">
+			<div id="darken-screen"></div>
+			<div class="overlay" id="return-overlay">
+				<img src="assets/close.png" alt="" id="close-button" 
+					v-on:click="isOverlayActive = false">
+
+				<template v-if="winner === -1">
+					<div>
+						<h2>Draw</h2>
+						<p style="width: 450px;" class="centre small">Your game has ended in a draw. You can either accept the draw or choose one of the minigames below as a tiebreaker - whoever wins is the winner of this game.</p>
+					</div>
+		
+					<div class="draw-options" v-if="isSinglePlayer">
+						<button v-on:click="isOverlayActive = false; resetGame();" style="background-color: #86D2FF;">
+							<b>Home</b>
+						</button>
+						<button v-on:click="isOverlayActive = false; clearMoveData(); winner = null; startGame(false);" style="background-color: rgb(255, 134, 134)"
+							v-if="winner !== null">
+							<b>Rematch</b>
+						</button>
+					</div>
+					<div class="draw-options" v-else>
+						<button v-on:click="isOverlayActive = false; openMinigame(screens.PONG);" style = "background-color: #EAA9FF;">
+							<b>Pong</b>
+						</button>
+						<button v-on:click="isOverlayActive = false; openMinigame(screens.TICTACTOE);" style = "background-color: #EAA9FF;">
+							<b>Tic tac toe</b>
+						</button>
+						<button v-on:click="isOverlayActive = false; winner = null; startGame(false)" style="background-color: #EAA9FF;">
+							<b>Rematch</b>
+						</button>
+						<button v-on:click="isOverlayActive = false; resetGame();" style="background-color: #EAA9FF;">
+							<b>Home</b>
+						</button>
+					</div>
+				</template>
+				<div class="draw-options" v-else>
+					<h2 :style="gameResultStyle" v-if="winner !== null">{{gameResult ?? '&nbsp;'}}</h2>
+					<button v-on:click="isOverlayActive = false; resetGame();" style="background-color: #86D2FF;">
+						<b>Home</b>
+					</button>
+					<button v-on:click="isOverlayActive = false; clearMoveData(); winner = null; startGame(false);" style="background-color: rgb(255, 134, 134)"
+						v-if="winner !== null">
+						<b>Rematch</b>
+					</button>
+				</div>
+			</div>
+		</template>
+
+	<div id="menu-screen" v-if="screen === screens.MENU_SCREEN">
+		<br>
+		<p><b>v1.1.0</b></p>
+		<h1>Welcome to Connect Plus!</h1>
+		<p>Select a game mode to get started</p>
+
+		<div class="welcome-options">
+			<button v-on:click="isSinglePlayer = true; screen = screens.CONFIGURATION;" 
+			style = "background-color: #FF8686">
+				<b>1 Player</b> <br>
+				<img src="assets/single-player.png" alt="">
+			</button>
+			<button v-on:click="isSinglePlayer = false; screen = screens.CONFIGURATION;" 
+			style = "background-color: #86D2FF">
+				<b>2 Player</b> <br>
+				<img src="assets/2-player.png" alt="">
+			</button>
+			<button v-if="GameSaver.isGameSaved()" v-on:click="startGame(true)" style = "background-color: #EAA9FF">
+				<b>Load Previous Game</b> <br>
+				<img src="assets/reload.png" alt="">
+			</button>
+		</div>
+
+	</div>
+
+	<div id="game-config" class="overlay" v-if="screen === screens.CONFIGURATION" v-cloak>
+		<h2 v-if="isSinglePlayer === true">Single Player Mode</h2>
+		<h2 v-else>Two Player Mode</h2>
+
+		<form
+			id="app"
+			@submit="formComplete"
+		>
+			<template v-if="isSinglePlayer === true">
+				<div class="game-paramater">
+					<span>Bot Difficulty:</span>
+					<input type="radio" id="easy" value="Easy" v-model="botDifficulty" class="option-1">
+					<label for="easy" class="option-1">Easy</label>
+					<input type="radio" id="medium" value="Medium" v-model="botDifficulty" class="option-2">
+					<label for="medium" class="option-2">Medium</label>
+					<br>
+				</div>
+
+				<div class="game-paramater">
+					<span>Player 1:</span>
+					<input type="radio" id="bot" value="Bot" v-model="player1" class="option-1">
+					<label for="bot" class="option-1">Bot</label>
+					<input type="radio" id="you" value="You" v-model="player1" class="option-2">
+					<label for="you" class="option-2">You</label>
+					<br>
+				</div>
+			</template>
+			<template v-else>
+				<div class="game-paramater">
+					<span>Connect:</span>
+					<input type="radio" id="three" value="3" v-model="winningLengthString" class="option-1">
+					<label for="three" class="option-1">Three</label>
+					<input type="radio" id="four" value="4" v-model="winningLengthString" class="option-2">
+					<label for="four" class="option-2">Four</label>
+					<input type="radio" id="five" value="5" v-model="winningLengthString" class="option-3">
+					<label for="five" class="option-3">Five</label>
+					<br>
+				</div>
+
+				<div class="game-paramater">
+					<span>Powerups:</span>
+					<input type="radio" id="on" value="On" v-model="arePowerupsEnabledString" class="option-1">
+					<label for="on" class="option-1">On</label>
+					<input type="radio" id="off" value="Off" v-model="arePowerupsEnabledString" class="option-2">
+					<label for="off" class="option-2">Off</label>
+					<br>
+				</div>
+			</template>
+
+			<div class="game-paramater" id="grid-size-parameter">
+				<span>Grid size:</span>
+				<input type="number" value="6" min="4" max="12" required v-model="width">
+				<span>x</span>
+				<input type="number" value="7" min="4" max="8" v-model="height">
+				<br>
+			</div>
+
+			<input
+				type="submit"
+				value="Play"
+				id="play"
+			>
+		</form>
+	</div>
+
+	<template v-if="screen === screens.BOARD">
+		<h2 :style="gameResultStyle">{{gameResult ?? '&nbsp;'}}</h2>
+		
+
+		<div id="tokenAnimationContainer">
+			<div v-for="(tokenAnimation, i) in game.board.tokenAnimations" :key="i" :id="'tokenAnimation' + i"
+				class="cell tokenAnimations">
+				<img v-if="tokenAnimation.playerIndex === 0" 
+					src="assets/blue-token.png" class="cellImages" draggable="false">
+				<img v-if="tokenAnimation.playerIndex === 1" 
+					src="assets/red-token.png" class="cellImages" draggable="false">
+			</div>
+		</div>
+
+		<div id="inventory">
+			<div class="inventoryWrapper">
+				<div v-for="(row, y) in game.board.tokens" :key="y + 'row'" class="row">
+					<div class="cell" v-on:click="clickPowerup(0, game.height - 1 - y)"
+						:class="((isPowerupActive && activePowerupSlot != game.height - 1 - y) ||
+						 (game.activePlayerIndex === 1 || !isPlayerMoving)) ? 'darken' : ''" >
+						<!-- darken it if its not the current player's turn or another powerup is active -->
+						<transition name="fade">
+							<img v-if="game.height - 1 - y < game.players[0].powerupCount" 
+								src="assets/remove-token-powerup.png" class="cellImages"  draggable="false">
+						</transition>
+					</div>
+				</div>
+			</div>
+
+			<div class="inventoryWrapper inventoryBorder">
+				<div class="row" id="top-row">
+					<div v-for="(col, x) in game.board.tokens[0]" :key="x" class="cell" :id="'cell' + x + ',-1'"
+						v-on:mouseover="enterCell(x, y)" v-on:mouseleave="leaveCell(x, y)" 
+						v-on:click="clickCell(x, -1)">
+						<div v-if="highlightedColumn === x && isPlayerMoving">
+							<img v-if="game.activePlayerIndex === 0" 
+								src="assets/blue-token-above-board.png" class="cellImages" draggable="false">
+							<img v-if="game.activePlayerIndex === 1" 
+								src="assets/red-token-above-board.png" class="cellImages" draggable="false">
+						</div>
+					</div>
+				</div>
+
+				<div v-for="(row, y) in game.board.tokens" :key="y + 'row'" class="row">
+					<div v-for="(col, x) in game.board.tokens[y]" :key="x + 'col'" :id="'cell' + x + ',' + y"
+						class="cell" :class="(highlightedColumn === x  && isPlayerMoving ? 'highlighted' : '') + ' ' + (game.board.cellStyles[y][x].isDark || (isPowerupActive && !isHovered(x, y)) ? 'darken' : '')
+						+ ' ' + (game.board.cellStyles[y][x].isLight ? 'lighten' : '')"
+						v-on:mouseover="enterCell(x, y)" 
+						v-on:mouseleave="leaveCell(x, y)"
+						v-on:click="clickCell(x, y)">
+						<img v-if="game.board.tokens[y][x]?.playerIndex === 0 && game.board.cellStyles[y][x].isVisible" 
+							src="assets/blue-token.png" class="cellImages"  draggable="false">
+						<img v-if="game.board.tokens[y][x]?.playerIndex === 1 && game.board.cellStyles[y][x].isVisible"  
+							src="assets/red-token.png" class="cellImages"  draggable="false">
+						
+						<img v-if="highlightedColumn === x && isPlayerMoving" src="assets/board-cell-highlighted.png" class="cellImages"  draggable="false">
+						<img v-else src="assets/board-cell.png" class="cellImages"  draggable="false">
+					</div>
+				</div>
+			</div>
+
+			<div class="inventoryWrapper">
+				<div v-for="(row, y) in game.board.tokens" :key="y + 'row'" class="row">
+					<div class="cell" v-on:click="clickPowerup(1, game.height - 1 - y)"
+						:class="((isPowerupActive && activePowerupSlot != game.height - 1 - y) ||
+						 (game.activePlayerIndex === 0 || !isPlayerMoving)) ? 'darken' : ''" >
+						<!-- darken it if its not the current player's turn or another powerup is active -->
+						<transition name="fade">
+							<img v-if="game.height - 1 - y < game.players[1].powerupCount" 
+								src="assets/remove-token-powerup.png" class="cellImages"  draggable="false">
+						</transition>
+					</div>
+				</div>
+			</div>
+		</div>
+	</template>
+
+	<div v-if="screen === screens.TICTACTOE" v-cloak>
+		<iframe src="/Tic Tac Toe/index.html" frameborder="0"></iframe>
+	</div>
+
+	<div v-if="screen === screens.PONG" v-cloak>
+		<iframe src="/Pong/index.html" frameborder="0"></iframe>
+	</div>
+
+
+	</div>
+
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script src="library/vue.js"></script>
+
+
+	<script type="text/javascript" src="js/Coords.js" type="module"></script>
+	<script type="text/javascript" src="js/GameSaver.js" type="module"></script>
+	<script type="text/javascript" src="js/Game.js" type="module"></script>
+	<script type="text/javascript" src="js/Board.js" type="module"></script>
+	<script type="text/javascript" src="js/Player.js" type="module"></script>
+	<script type="text/javascript" src="js/LocalPlayer.js" type="module"></script>
+	<script type="text/javascript" src="js/MinimaxBot.js" type="module"></script>
+	<script type="text/javascript" src="js/RandomBot.js" type="module"></script>
+	<script type="text/javascript" src="js/Line.js" type="module"></script>
+	<script type="text/javascript" src="util.js" type="module"></script>
+	<script type="text/javascript" src="app.js"></script>
+</body>
+</html>
